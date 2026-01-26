@@ -1,4 +1,4 @@
-# bike-data-lakehouse
+# Bike-data-lakehouse
 End-to-end Data Lakehouse built on Databricks using Medallion Architecture (Bronze, Silver, Gold) with automated pipelines and analytics-ready data models.
 The pipeline processes a dataset of 10k records
 
