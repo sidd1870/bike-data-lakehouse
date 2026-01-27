@@ -27,12 +27,23 @@ Raw CRM sales data is ingested, cleaned, transformed, and modeled into analytica
 ---
 
 ## 📊 Dashboards (Databricks SQL)
-- Sales Overview KPIs
 - Monthly Sales Trend
-- Top Products by Revenue
-- Top Customers by Revenue
+- Total sales by product
+- Active & inactive products
+- Sales by gender
 
 Dashboards are built using Gold layer tables.
+
+## 🔁 Data Pipeline Overview
+
+This project follows a Medallion Architecture (Bronze → Silver → Gold).
+
+![Pipeline Overview](assets/pipeline_overview.png)
+
+- **Bronze**: Raw ingestion from source CSV files
+- **Silver**: Data cleaning, standardization, validation using SQL
+- **Gold**: Business-ready fact and dimension tables for analytics
+
 
 ---
 
