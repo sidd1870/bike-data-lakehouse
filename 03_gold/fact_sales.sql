@@ -1,40 +1,33 @@
 -- Databricks notebook source
-DROP TABLE IF EXISTS gold.fact_sales;
-
-
--- COMMAND ----------
-
 CREATE OR REPLACE TABLE gold.fact_sales AS
 SELECT
     order_number,
     customer_id,
     product_key,
     order_date,
-    ship_date,
+    shipping_date,
     due_date,
     sales_amount,
     quantity,
-    unit_price
+    price
 FROM (
     SELECT
         s.order_number,
         s.customer_id,
         s.product_key,
         s.order_date,
-        s.ship_date,
+        s.shipping_date,
         s.due_date,
         s.sales_amount,
         s.quantity,
-        s.unit_price,
+        s.price,
         ROW_NUMBER() OVER (
             PARTITION BY s.order_number, s.product_key
             ORDER BY s.order_date
         ) AS rn
-    FROM silver.crm_sales_details s
+    FROM workspace.silver.crm_sales_details s
 )
 WHERE rn = 1;
-
-
 
 -- COMMAND ----------
 
@@ -95,22 +88,20 @@ ORDER BY total_sales DESC;
 -- COMMAND ----------
 
 SELECT
-    order_date,
+    date_format(
+        try_to_date(CAST(order_date AS STRING), 'yyyyMMdd'),
+        'yyyy-MM-dd'
+    ) AS order_date,
     SUM(sales_amount) AS daily_sales
 FROM gold.fact_sales
+WHERE try_to_date(CAST(order_date AS STRING), 'yyyyMMdd') IS NOT NULL
 GROUP BY order_date
 ORDER BY order_date;
 
-
 -- COMMAND ----------
 
 -- MAGIC %md
--- MAGIC
-
--- COMMAND ----------
-
--- MAGIC %md
--- MAGIC ##Sales by customer gender
+-- MAGIC ##Total sales by customer **gender**
 
 -- COMMAND ----------
 
@@ -135,22 +126,13 @@ GROUP BY c.gender;
 
 -- COMMAND ----------
 
-SELECT *
-FROM (
-    SELECT
-        f.customer_id,
-        f.product_key,
-        SUM(f.sales_amount) AS total_sales,
-        ROW_NUMBER() OVER (
-            PARTITION BY f.customer_id
-            ORDER BY SUM(f.sales_amount) DESC
-        ) AS rn
-    FROM gold.fact_sales f
-    GROUP BY f.customer_id, f.product_key
-)
-WHERE rn <= 5;
-
-
+SELECT
+    customer_id,
+    SUM(sales_amount) AS total_sales
+FROM gold.fact_sales
+GROUP BY customer_id
+ORDER BY total_sales DESC
+LIMIT 5
 
 -- COMMAND ----------
 
@@ -168,26 +150,7 @@ ORDER BY quantity DESC;
 -- COMMAND ----------
 
 -- MAGIC %md
--- MAGIC ##Monthly sales 
-
--- COMMAND ----------
-
-WITH base AS (
-  SELECT
-    date_format(
-      try_to_date(CAST(order_date AS STRING), 'yyyyMMdd'),
-      'yyyy-MM-dd'
-    ) AS year_month_day,
-    sales_amount
-  FROM gold.fact_sales
-  WHERE try_to_date(CAST(order_date AS STRING), 'yyyyMMdd') IS NOT NULL
-)
-SELECT
-  year_month_day,
-  SUM(sales_amount) AS total_sales
-FROM base
-GROUP BY year_month_day
-ORDER BY year_month_day;
+-- MAGIC ##Top 10 Products by **Revenue**
 
 -- COMMAND ----------
 
@@ -202,17 +165,41 @@ LIMIT 10;
 
 -- COMMAND ----------
 
+-- MAGIC %md
+-- MAGIC ##Total Sales by Product **Name**
+
+-- COMMAND ----------
+
 SELECT
-  p.`product_name`,
-  SUM(f.`sales_amount`) AS total_sales
+  p.product_name AS Product_Name,
+  SUM(f.sales_amount) AS Total_Sales
 FROM
-  `workspace`.`default`.`fact_sales` f
-    JOIN `workspace`.`default`.`dim_products` p
-      ON f.`product_key` = p.`product_key`
+  workspace.default.fact_sales f
+    JOIN workspace.default.dim_products p
+      ON f.product_key = p.product_key
 WHERE
-  p.`product_name` IS NOT NULL
-  AND f.`sales_amount` IS NOT NULL
+  p.product_name IS NOT NULL
+  AND f.sales_amount IS NOT NULL
 GROUP BY
-  p.`product_name`
+  p.product_name
 ORDER BY
-  total_sales DESC
+  Total_Sales DESC
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ##Total Sales per month
+
+-- COMMAND ----------
+
+SELECT 
+    DATE_FORMAT(try_to_date(CAST(order_date AS STRING), 'yyyyMMdd'), 'MMM yyyy') AS month,
+    SUM(sales_amount) AS total_sales
+FROM gold.fact_sales
+WHERE try_to_date(CAST(order_date AS STRING), 'yyyyMMdd') IS NOT NULL
+GROUP BY DATE_FORMAT(try_to_date(CAST(order_date AS STRING), 'yyyyMMdd'), 'MMM yyyy')
+ORDER BY month;
+
+-- COMMAND ----------
+
+SELECT COUNT(*) FROM gold.fact_sales;
