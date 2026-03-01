@@ -1,13 +1,21 @@
 -- Databricks notebook source
 CREATE OR REPLACE TABLE gold.dim_products AS
-SELECT DISTINCT
+SELECT
     product_key,
     product_name,
     product_line,
-    product_cost,
     start_date,
     end_date
-FROM silver.crm_prd_info;
+FROM (
+    SELECT
+        p.*,
+        ROW_NUMBER() OVER (
+            PARTITION BY product_key
+            ORDER BY end_date DESC NULLS LAST, start_date DESC
+        ) AS rn
+    FROM workspace.silver.crm_prd_info p
+)
+WHERE rn = 1;
 
 
 
@@ -23,10 +31,5 @@ FROM gold.fact_sales
 LIMIT 20;
 
 
--- COMMAND ----------
-
-SELECT COUNT(*)
-FROM gold.fact_sales f
-JOIN gold.dim_products_current p
-  ON f.product_key = p.product_key;
+-
 
