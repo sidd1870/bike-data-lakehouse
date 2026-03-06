@@ -1,163 +1,133 @@
-# Databricks notebook source
-# MAGIC %md
-# MAGIC ## **Reading From Bronze Table**
-# MAGIC
-# MAGIC
+-- ============================================
+-- Reading From Bronze Table
+-- ============================================
 
-# COMMAND ----------
+SELECT *
+FROM workspace.bronze.crm_cust_info;
 
-# MAGIC %sql
-# MAGIC SELECT *
-# MAGIC FROM workspace.bronze.crm_cust_info;
+DESCRIBE TABLE workspace.bronze.crm_cust_info;
 
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC DESCRIBE TABLE workspace.bronze.crm_cust_info
+-- ============================================
+-- Creating Silver Table (Initial Selection)
+-- ============================================
 
-# COMMAND ----------
+CREATE OR REPLACE TABLE silver_crm_cust_info AS
+SELECT 
+    customer_id,
+    first_name,
+    last_name,
+    marital_status,
+    gender,
+    created_date
+FROM workspace.bronze.crm_cust_info;
 
-# MAGIC %md
-# MAGIC ## Renaming 
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC REPLACE TABLE workspace.bronze.crm_cust_info AS
-# MAGIC SELECT 
-# MAGIC     customer_id,
-# MAGIC     first_name,
-# MAGIC     last_name,
-# MAGIC     marital_status,
-# MAGIC     gender,
-# MAGIC     created_date
-# MAGIC FROM workspace.bronze.crm_cust_info;
+-- ============================================
+-- Trimming Unnecessary Spaces
+-- ============================================
 
-# COMMAND ----------
+UPDATE workspace.bronze.crm_cust_info
+SET
+    first_name     = TRIM(first_name),
+    last_name      = TRIM(last_name),
+    marital_status = TRIM(marital_status),
+    gender         = TRIM(gender);
 
-# MAGIC %md
-# MAGIC ## **Trimming**
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC UPDATE workspace.bronze.crm_cust_info
-# MAGIC SET
-# MAGIC     first_name     = TRIM(first_name),
-# MAGIC     last_name      = TRIM(last_name),
-# MAGIC     marital_status = TRIM(marital_status),
-# MAGIC     gender         = TRIM(gender);
+-- ============================================
+-- Categorical Mapping
+-- ============================================
 
-# COMMAND ----------
+CREATE OR REPLACE TABLE silver_crm_cust_info AS
+SELECT
+    customer_id,
+    first_name,
+    last_name,
 
-# MAGIC %md
-# MAGIC
-# MAGIC ## **Categorical Mapping**
+    CASE
+        WHEN UPPER(marital_status) = 'S' THEN 'Single'
+        WHEN UPPER(marital_status) = 'M' THEN 'Married'
+        ELSE 'n/a'
+    END AS marital_status,
 
-# COMMAND ----------
+    CASE
+        WHEN UPPER(gender) = 'F' THEN 'Female'
+        WHEN UPPER(gender) = 'M' THEN 'Male'
+        ELSE 'n/a'
+    END AS gender,
 
-# MAGIC %sql
-# MAGIC REPLACE TABLE workspace.bronze.crm_cust_info AS
-# MAGIC SELECT
-# MAGIC     customer_id,
-# MAGIC     first_name,
-# MAGIC     last_name,
-# MAGIC
-# MAGIC     CASE
-# MAGIC         WHEN UPPER(marital_status) = 'S' THEN 'Single'
-# MAGIC         WHEN UPPER(marital_status) = 'M' THEN 'Married'
-# MAGIC         ELSE 'n/a'
-# MAGIC     END AS marital_status,
-# MAGIC
-# MAGIC     CASE
-# MAGIC         WHEN UPPER(gender) = 'F' THEN 'Female'
-# MAGIC         WHEN UPPER(gender) = 'M' THEN 'Male'
-# MAGIC         ELSE 'n/a'
-# MAGIC     END AS gender,
-# MAGIC
-# MAGIC     created_date
-# MAGIC FROM workspace.bronze.crm_cust_info;
+    created_date
+FROM workspace.bronze.crm_cust_info;
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT * FROM workspace.bronze.crm_cust_info
 
-# COMMAND ----------
+-- ============================================
+-- Replacing Null Values
+-- ============================================
 
-# MAGIC %md
-# MAGIC ##Replacing Null **values**
+CREATE OR REPLACE TABLE silver_crm_cust_info AS
+SELECT 
+    customer_id,
+    COALESCE(first_name, 'Unknown') AS first_name,
+    COALESCE(last_name, 'Unknown') AS last_name,
+    COALESCE(marital_status, 'n/a') AS marital_status,
+    COALESCE(gender, 'n/a') AS gender,
+    COALESCE(created_date, '1900-01-01') AS created_date
+FROM bronze.crm_cust_info
+WHERE customer_id IS NOT NULL;
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC
-# MAGIC CREATE OR REPLACE TABLE silver.dim_customers AS
-# MAGIC SELECT 
-# MAGIC     customer_id,
-# MAGIC     COALESCE(first_name, 'Unknown') AS first_name,
-# MAGIC     COALESCE(last_name, 'Unknown') AS last_name,
-# MAGIC     COALESCE(marital_status, 'n/a') AS marital_status,
-# MAGIC     COALESCE(gender, 'n/a') AS gender,
-# MAGIC     COALESCE(created_date, '1900-01-01') AS created_date
-# MAGIC FROM bronze.crm_cust_info
-# MAGIC WHERE customer_id IS NOT NULL; 
 
-# COMMAND ----------
+-- ============================================
+-- Row Count Validation
+-- ============================================
 
-# MAGIC %sql
-# MAGIC CREATE OR REPLACE TABLE bronze.crm_cust_info AS
-# MAGIC SELECT 
-# MAGIC     customer_id,
-# MAGIC     COALESCE(first_name, 'Unknown') AS first_name,
-# MAGIC     COALESCE(last_name, 'Unknown') AS last_name,
-# MAGIC     COALESCE(marital_status, 'n/a') AS marital_status,
-# MAGIC     COALESCE(gender, 'n/a') AS gender,
-# MAGIC     COALESCE(created_date, '1900-01-01') AS created_date
-# MAGIC FROM bronze.crm_cust_info
-# MAGIC WHERE customer_id IS NOT NULL;
+SELECT 
+    COUNT(*) AS total_rows,
+    COUNT(customer_id) AS non_null_ids
+FROM bronze.crm_cust_info;
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT count(*) as total_rows, 
-# MAGIC        count(customer_id) as non_null_ids 
-# MAGIC FROM bronze.crm_cust_info;
 
-# COMMAND ----------
+-- ============================================
+-- Null Value Check
+-- ============================================
 
-# MAGIC %sql
-# MAGIC SELECT 
-# MAGIC     count_if(customer_id IS NULL) AS null_customer_id,
-# MAGIC     count_if(first_name IS NULL) AS null_first_name,
-# MAGIC     count_if(last_name IS NULL) AS null_last_name,
-# MAGIC     count_if(marital_status IS NULL) AS null_marital_status,
-# MAGIC     count_if(gender IS NULL) AS null_gender,
-# MAGIC     count_if(created_date IS NULL) AS null_created_date
-# MAGIC FROM bronze.crm_cust_info;
-# MAGIC FROM bronze.crm_cust_info;
+SELECT 
+    COUNT_IF(customer_id IS NULL) AS null_customer_id,
+    COUNT_IF(first_name IS NULL) AS null_first_name,
+    COUNT_IF(last_name IS NULL) AS null_last_name,
+    COUNT_IF(marital_status IS NULL) AS null_marital_status,
+    COUNT_IF(gender IS NULL) AS null_gender,
+    COUNT_IF(created_date IS NULL) AS null_created_date
+FROM bronze.crm_cust_info;
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT * FROM silver.crm_cust_info
 
-# COMMAND ----------
+-- ============================================
+-- View Silver Table
+-- ============================================
 
-# MAGIC %md
-# MAGIC ##Duplicates check
+SELECT *
+FROM silver.crm_cust_info;
 
-# COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT 
-# MAGIC     COALESCE(SUM(duplicate_count), 0) AS duplicate_count
-# MAGIC FROM (
-# MAGIC     SELECT 
-# MAGIC         customer_id,
-# MAGIC         COUNT(*) AS duplicate_count
-# MAGIC     FROM bronze.crm_cust_info
-# MAGIC     GROUP BY customer_id
-# MAGIC     HAVING COUNT(*) > 1
-# MAGIC ) t;
+
+-- ============================================
+-- Duplicate Check
+-- ============================================
+
+SELECT 
+    COALESCE(SUM(duplicate_count), 0) AS duplicate_count
+FROM (
+    SELECT 
+        customer_id,
+        COUNT(*) AS duplicate_count
+    FROM bronze.crm_cust_info
+    GROUP BY customer_id
+    HAVING COUNT(*) > 1
+) t;
