@@ -29,8 +29,9 @@ Raw CRM sales data is ingested, cleaned, transformed, and modeled into analytica
 ## 📊 Dashboards (Databricks SQL)
 - Monthly Sales Trend
 - Total sales by product
-- Active & inactive products
+- Month over month sales 
 - Sales by gender
+- TOP 40%  of sales
 
 Dashboards are built using Gold layer tables.
 
